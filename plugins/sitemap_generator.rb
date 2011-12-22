@@ -46,7 +46,7 @@ module Jekyll
   SITEMAP_FILE_NAME = "sitemap.xml"
 
   # Any files to exclude from being included in the sitemap.xml
-  EXCLUDED_FILES = ["atom.xml"]
+  EXCLUDED_FILES = ["atom.xml","404.html"]
 
   # Any files that include posts, so that when a new post is added, the last
   # modified date of these pages should take that into account
@@ -78,7 +78,8 @@ module Jekyll
     end
 
     def location_on_server
-      location = "#{site.config['url']}#{@dir}#{url}"
+      location = "#{site.config['url']}#{@dest_url}/" if @dest_url
+      location ||= "#{site.config['url']}#{@dir}#{url}"
       location.gsub(/index.html$/, "")
     end
   end
@@ -163,7 +164,7 @@ module Jekyll
       site.pages.each do |page|
         if !excluded?(page.name)
           path = page.full_path_to_source
-          if File.exists?(path)
+          if File.exists?(path) || page.dest_url
             url = fill_url(site, page)
             urlset.add_element(url)
           end
@@ -225,12 +226,13 @@ module Jekyll
     #
     # Returns lastmod REXML::Element or nil
     def fill_last_modified(site, page_or_post)
-      path = page_or_post.full_path_to_source
-
       lastmod = REXML::Element.new "lastmod"
-      date = File.mtime(path)
-      latest_date = find_latest_date(date, site, page_or_post)
 
+      date = page_or_post.src_mtime if page_or_post.respond_to? 'src_mtime'
+      date ||= File.mtime(page_or_post.full_path_to_source)
+
+      latest_date = find_latest_date(date, site, page_or_post)
+      
       if @last_modified_post_date == nil
         # This is a post
         lastmod.text = latest_date.iso8601
